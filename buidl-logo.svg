@@ -1,0 +1,30 @@
+<svg width="480" height="480" viewBox="0 0 480 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="480" height="480" rx="96" fill="#131318"/>
+
+  <!-- Ambient glow -->
+  <circle cx="240" cy="200" r="180" fill="url(#glow)" opacity="0.15"/>
+
+  <!-- Main circle -->
+  <circle cx="240" cy="210" r="120" fill="url(#mainGrad)" opacity="0.12"/>
+  <circle cx="240" cy="210" r="120" stroke="url(#mainGrad)" stroke-width="3" fill="none" opacity="0.4"/>
+
+  <!-- Arrow/chart icon -->
+  <path d="M180 280L240 160L300 280" stroke="url(#mainGrad)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="240" cy="300" r="12" fill="url(#mainGrad)"/>
+
+  <!-- Text -->
+  <text x="240" y="410" text-anchor="middle" fill="white" font-family="Inter, system-ui, sans-serif" font-size="52" font-weight="800" letter-spacing="-2">YieldPilot</text>
+  <text x="240" y="448" text-anchor="middle" fill="#00d4aa" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="600" letter-spacing="6" opacity="0.8">DEFI INTELLIGENCE</text>
+
+  <defs>
+    <linearGradient id="mainGrad" x1="160" y1="140" x2="320" y2="320">
+      <stop stop-color="#00d4aa"/>
+      <stop offset="1" stop-color="#00b894"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop stop-color="#00d4aa"/>
+      <stop offset="1" stop-color="#00d4aa" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>
