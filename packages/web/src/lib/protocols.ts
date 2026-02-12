@@ -80,6 +80,16 @@ export const BSC_PROTOCOLS: Record<string, ProtocolConfig> = {
   },
 };
 
+export const SUPPORTED_PROTOCOL_NAMES = Object.keys(BSC_PROTOCOLS);
+
+export function getProtocolByContract(address: string): string | null {
+  const lower = address.toLowerCase();
+  for (const [key, proto] of Object.entries(BSC_PROTOCOLS)) {
+    if (proto.contracts.some(c => c.toLowerCase() === lower)) return key;
+  }
+  return null;
+}
+
 export const BSC_TOKENS: Record<string, { symbol: string; decimals: number; name: string }> = {
   "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c": { symbol: "WBNB", decimals: 18, name: "Wrapped BNB" },
   "0x55d398326f99059fF775485246999027B3197955": { symbol: "USDT", decimals: 18, name: "Tether USD" },
