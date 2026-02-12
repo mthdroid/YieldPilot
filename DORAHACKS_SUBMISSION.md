@@ -172,67 +172,138 @@ Use at least one:
 
 # YieldPilot — AI-Powered DeFi Portfolio Intelligence
 
-> Connect your wallet. Get personalized yield strategies and risk analysis powered by AI on BNB Chain. Publish your optimized strategy on-chain as a verifiable NFT.
+> Connect your BSC wallet. Get personalized yield strategies and risk analysis powered by 8 specialized modules + Claude AI. Publish your optimized strategy on-chain as a verifiable ERC-721 NFT on BSC Mainnet and opBNB.
+
+---
 
 ## The Problem
 
-DeFi users on BNB Chain interact with 5–10 protocols but have no unified view of their risk, yield, or portfolio health. Existing tools show only balances — no risk analysis, no yield optimization, no personalized strategy.
+DeFi users on BNB Chain interact with 5–10 protocols (Venus, PancakeSwap, Alpaca, Beefy, Stargate, Thena) but have **no unified view** of their risk exposure, yield opportunities, or portfolio health. Existing tools either:
+
+- Show only token balances — no risk analysis
+- Require premium subscriptions for basic insights
+- Don't cover BNB Chain protocols specifically
+- Provide generic advice not tailored to the user's actual positions
+
+**The result**: users unknowingly hold concentrated positions, miss higher-yield opportunities, face liquidation risks, and make suboptimal DeFi decisions.
+
+---
 
 ## The Solution
 
-YieldPilot scans your full DeFi portfolio, runs **8 specialized analysis modules**, synthesizes results with **Claude AI**, and lets you **publish your strategy on-chain as an ERC-721 NFT**.
+YieldPilot scans your full DeFi portfolio, runs **8 independent analysis modules** (each producing its own risk/opportunity score), synthesizes results with **Claude AI** into personalized recommendations, and lets you **publish your optimized strategy on-chain as an ERC-721 NFT** — with a verifiable keccak256 hash.
+
+---
 
 ## How It Works
 
 ```
-Wallet → Scan (BSCScan) → 8 Modules → AI Synthesis → On-Chain NFT
+Wallet → BSCScan Scan → 8 Analysis Modules → Claude AI Synthesis → On-Chain NFT + PDF
 ```
 
-**Connect** your wallet → **Scan** all tokens & positions → **Analyze** through 8 modules → **AI** synthesizes into strategy → **Publish** as NFT on BSC/opBNB → **Export** PDF report
+**Step 1 — Connect**: User connects via MetaMask. YieldPilot auto-detects and switches to BSC.
 
-## 8 Analysis Modules
+**Step 2 — Scan**: BSCScan API fetches native BNB, all BEP-20 tokens, DeFi positions, and protocol interactions.
 
-| Module | What It Does |
-|--------|-------------|
-| Portfolio Health | Diversification scoring (HHI index) |
-| Yield Optimizer | Best APYs across Venus, PancakeSwap, Alpaca, Beefy |
-| IL Tracker | Impermanent loss estimation on LP positions |
-| Liquidation Guard | Health factor monitoring for lending |
-| Protocol Risk | TVL, audits, incident history |
-| Concentration Risk | Single-token & protocol exposure alerts |
-| Gas Optimizer | Rebalancing cost estimation |
-| Market Sentiment | BNB ecosystem trend analysis |
+**Step 3 — Analyze**: 8 independent modules score the portfolio:
 
-All modules work **without an AI key**. Claude AI is an optional enhancement.
+| # | Module | Method | Output |
+|---|--------|--------|--------|
+| 1 | **Portfolio Health** | Herfindahl-Hirschman Index, stablecoin ratio, protocol quality | Health score 0–100 |
+| 2 | **Yield Optimizer** | Cross-protocol APY comparison (Venus, PancakeSwap, Alpaca, Beefy) | Best yield per token |
+| 3 | **IL Tracker** | LP position detection, impermanent loss estimation | IL risk alerts |
+| 4 | **Liquidation Guard** | Health factor calculation for Venus/Alpaca lending | Liquidation warnings |
+| 5 | **Protocol Risk** | TVL, audit status, incident history per protocol | Protocol risk scores |
+| 6 | **Concentration Risk** | Single-token (>40%) and single-protocol exposure detection | Concentration alerts |
+| 7 | **Gas Optimizer** | Rebalancing cost estimation, optimal timing | Gas cost estimates |
+| 8 | **Market Sentiment** | BNB price trend, ecosystem health indicators | Bullish/Neutral/Bearish |
+
+**Step 4 — AI Synthesis**: Claude AI receives all 8 module outputs and produces natural-language strategy advice with top 5 actionable recommendations.
+
+**Step 5 — Publish On-Chain**: Strategy minted as ERC-721 NFT on BSC Mainnet or opBNB. Strategy data is hashed (keccak256) for integrity verification.
+
+**Step 6 — Export**: Full analysis downloadable as PDF report (jsPDF + html2canvas).
+
+---
+
+## Key Differentiators
+
+- **8 independent modules** — not a single score, but a complete risk/opportunity breakdown
+- **AI is optional** — every module works standalone without an API key
+- **On-chain verifiable** — keccak256 strategy hash stored as ERC-721 NFT
+- **Multi-chain** — BSC Mainnet + opBNB, with in-app network switching
+- **Strategy Explorer** — browse and search community-published strategies with hash verification
+- **Demo mode** — full analysis flow without connecting a wallet
+- **BSC-native** — 6 protocols mapped to the BNB Chain ecosystem (Venus, PancakeSwap, Alpaca, Beefy, Stargate, Thena)
+
+---
 
 ## Live Contracts (Verified)
 
-| Network | Address |
-|---------|---------|
-| BSC Mainnet | [`0xF572...35E`](https://bscscan.com/address/0xF5726c5D8C47A9B278e610917E9c7191bc3e135E#code) |
-| opBNB | [`0xFED6...F0`](https://opbnbscan.com/address/0xFED653FBE3371E11243A4772589A2cA3Aea859F0#code) |
+| Network | Address | Status |
+|---------|---------|--------|
+| **BSC Mainnet** | [`0xF5726c5D8C47A9B278e610917E9c7191bc3e135E`](https://bscscan.com/address/0xF5726c5D8C47A9B278e610917E9c7191bc3e135E#code) | Verified |
+| **opBNB** | [`0xFED653FBE3371E11243A4772589A2cA3Aea859F0`](https://opbnbscan.com/address/0xFED653FBE3371E11243A4772589A2cA3Aea859F0#code) | Verified |
 
-## On-Chain Proof
+## On-Chain Proof Transactions
 
 | Network | Transaction |
 |---------|------------|
-| BSC | [`0x6b8e...d91d`](https://bscscan.com/tx/0x6b8e8f703cf8d975d7891f7cbee58a67cb3d4801e37fcfb4c013673e3410d91d) |
-| opBNB | [`0x8500...16c5`](https://opbnbscan.com/tx/0x85001d9e508cc72e278876cbb7df3cb58563bb9488ef75dc503867d9889316c5) |
+| **BSC Mainnet** | [`0x6b8e8f70...d91d`](https://bscscan.com/tx/0x6b8e8f703cf8d975d7891f7cbee58a67cb3d4801e37fcfb4c013673e3410d91d) |
+| **opBNB** | [`0x85001d9e...16c5`](https://opbnbscan.com/tx/0x85001d9e508cc72e278876cbb7df3cb58563bb9488ef75dc503867d9889316c5) |
+
+---
+
+## Example Analysis
+
+A BSC portfolio with BNB, USDT, CAKE, and XVS across 3 protocols produces:
+
+- **Risk Score**: 35/100 (moderate)
+- **Expected APY**: 12.5% (optimized from 5.8%)
+- **Health Factor**: 2.4 (safe zone on Venus)
+- **Top Recommendation**: "Rebalance 8% from BNB to USDC to bring concentration below 30%"
+- **Warning**: "BNB concentration at 38% approaching 40% threshold"
+
+Strategy hash published as NFT — anyone can verify the analysis integrity on-chain.
+
+---
 
 ## Tech Stack
 
-- **Contracts**: Solidity 0.8.24 + OpenZeppelin v5 + Hardhat (17 tests)
-- **Frontend**: Next.js 14 + Tailwind CSS + ethers.js v6 + Recharts
-- **AI**: Claude API (Anthropic) — optional
-- **On-Chain**: ERC-721 NFT on BSC & opBNB
-- **Export**: PDF via jsPDF + html2canvas
+| Layer | Technology |
+|-------|-----------|
+| Smart Contracts | Solidity 0.8.24, OpenZeppelin v5 (ERC-721), Hardhat |
+| Frontend | Next.js 14 (App Router), Tailwind CSS, ethers.js v6, Recharts |
+| AI | Claude API (Anthropic) — optional, graceful fallback |
+| On-Chain | ERC-721 NFT minting, BSC Mainnet + opBNB |
+| PDF Export | jsPDF + html2canvas |
+| CI/CD | GitHub Actions (smart contract tests + build verification) |
+| Testing | Hardhat + Chai — 17 unit tests, all passing |
 
-## Hackathon Tracks
+---
 
-- **DeFi** — Portfolio intelligence and yield optimization
-- **AI** — Claude-powered strategy synthesis
-- **opBNB** — Multi-chain deployment
+## Smart Contract Tests
+
+```
+  StrategyRegistry — 17 passing (2s)
+    ✔ should set correct name and symbol
+    ✔ should mint NFT and store strategy data
+    ✔ should emit StrategyPublished event
+    ✔ should revert if riskScore > 100
+    ✔ should revert if strategyHash is zero
+    ✔ should allow token owner to update URI
+    ✔ should allow transfer of strategy NFTs
+    ... and 10 more
+```
+
+---
+
+## Tracks
+
+- **DeFi** — Portfolio intelligence, yield optimization, and risk analysis
+- **AI** — Claude-powered strategy synthesis from 8 module outputs
+- **opBNB** — Multi-chain deployment (BSC Mainnet + opBNB)
 
 ## AI Build Log
 
-See [AI_BUILD_LOG.md](./AI_BUILD_LOG.md) for details on how AI was used throughout development.
+Full documentation of how Claude AI was used throughout development: [AI_BUILD_LOG.md](./AI_BUILD_LOG.md)
