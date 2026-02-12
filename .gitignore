@@ -19,3 +19,5 @@ packages/contracts/artifacts/
 packages/contracts/typechain-types/
 *.log
 *.tsbuildinfo
+nul
+desktop.ini
