@@ -29,6 +29,7 @@ export default function StrategiesPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [selected, setSelected] = useState<Strategy | null>(null);
   const [error, setError] = useState("");
+  const [searchAddress, setSearchAddress] = useState("");
 
   const registryAddress = NETWORKS[network].registry;
 
@@ -113,6 +114,22 @@ export default function StrategiesPage() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="mb-6 animate-slide-up" style={{ animationDelay: "0.03s" }}>
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--yp-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Filter by wallet address (0x...)"
+            value={searchAddress}
+            onChange={(e) => setSearchAddress(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-[var(--yp-surface)] border border-[var(--yp-border)] rounded-[var(--yp-radius-sm)] text-[13px] text-[var(--yp-text)] placeholder:text-[var(--yp-muted)] focus:outline-none focus:border-[var(--yp-accent)]/50 transition-colors"
+          />
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8 animate-slide-up" style={{ animationDelay: "0.05s" }}>
         <div className="card p-5 text-center">
@@ -184,7 +201,11 @@ export default function StrategiesPage() {
       {/* Strategy List */}
       {!loading && strategies.length > 0 && (
         <div className="space-y-3 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-          {strategies.map((s) => (
+          {strategies.filter((s) => {
+            if (!searchAddress) return true;
+            const q = searchAddress.toLowerCase();
+            return s.creator.toLowerCase().includes(q) || s.walletAnalyzed.toLowerCase().includes(q);
+          }).map((s) => (
             <div
               key={s.tokenId}
               className="card card-hover card-interactive p-5"
@@ -234,7 +255,16 @@ export default function StrategiesPage() {
                   </div>
                   <div>
                     <p className="text-[var(--yp-muted)] mb-1">Strategy Hash</p>
-                    <p className="font-mono text-[var(--yp-text-secondary)] break-all">{s.strategyHash}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-[var(--yp-text-secondary)] break-all flex-1">{s.strategyHash}</p>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(s.strategyHash); }}
+                        className="shrink-0 px-2 py-1 text-[10px] bg-[var(--yp-surface-2)] rounded-md hover:bg-[var(--yp-accent)]/10 text-[var(--yp-text-secondary)] hover:text-[var(--yp-accent)] transition-colors"
+                        title="Copy hash for verification"
+                      >
+                        Copy
+                      </button>
+                    </div>
                   </div>
                   {s.strategyURI && (
                     <div>
