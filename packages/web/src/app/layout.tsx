@@ -76,7 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {/* Right: Chain badge + GitHub */}
                 <div className="flex items-center gap-3">
                   <a
-                    href="https://github.com/YieldPilot/yieldpilot"
+                    href="https://github.com/mthdroid/YieldPilot"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-9 h-9 rounded-[var(--yp-radius-sm)] bg-[var(--yp-surface)] flex items-center justify-center text-[var(--yp-text-secondary)] hover:text-[var(--yp-text)] hover:bg-[var(--yp-surface-2)] transition-all"
