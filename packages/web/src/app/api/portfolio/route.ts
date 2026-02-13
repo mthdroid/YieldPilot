@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const BSC_RPC = "https://bsc-dataseed.binance.org/";
+const BSC_RPC_FALLBACK = "https://bsc-dataseed1.defibit.io/";
 const BSCSCAN_API_KEY = process.env.BSCSCAN_API_KEY || "";
 
 const KNOWN_TOKENS: Record<string, { symbol: string; decimals: number; name: string }> = {
@@ -38,6 +40,21 @@ const PROTOCOL_CONTRACTS: Record<string, string> = {
   "0x20a304a7d126758dfe6b243d0c075e5a31eb2e52": "thena", // Router
 };
 
+// NFT contracts for protocol detection (ERC-721 balanceOf check)
+const PROTOCOL_NFT_CONTRACTS: Record<string, string> = {
+  "0x46a15b0b27311cedf172ab29e4f4766fbe7f4364": "pancakeswap", // V3 NonfungiblePositionManager
+  "0xd4ae6eca985340dd434d38f470accce4dc78d109": "thena", // Thena positions
+};
+
+// Venus vToken contracts — holding vTokens means using Venus
+const VENUS_VTOKENS: Record<string, string> = {
+  "0xa07c5b74c9b40447a954e1466938b865b6bbea36": "vBNB",
+  "0xeca88125a5adbe82614ffc12d0db554e2e2867c8": "vUSDC",
+  "0xfd5840cd36d94d7229439859c0112a4185bc0255": "vUSDT",
+  "0x882c173bc7ff3b7786ca16dfed3dfffb9ee7847b": "vBTCB",
+  "0xf508fcd89b8bd15579dc79a6827cb4686a3592c8": "vETH",
+};
+
 // Fallback prices (used only if live fetch fails)
 const FALLBACK_PRICES: Record<string, number> = {
   WBNB: 600, BNB: 600, USDT: 1, USDC: 1, BUSD: 1,
@@ -70,6 +87,71 @@ async function fetchLivePrices(): Promise<Record<string, number>> {
   }
 }
 
+// ─── RPC helpers ────────────────────────────────────────────────────
+async function rpcCall(method: string, params: unknown[]): Promise<string> {
+  for (const rpc of [BSC_RPC, BSC_RPC_FALLBACK]) {
+    try {
+      const res = await fetch(rpc, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method, params, id: 1 }),
+      });
+      const data = await res.json();
+      if (data.result !== undefined) return data.result;
+    } catch {
+      continue;
+    }
+  }
+  return "0x0";
+}
+
+// Get native BNB balance via RPC
+async function getBNBBalance(address: string): Promise<number> {
+  const result = await rpcCall("eth_getBalance", [address, "latest"]);
+  return parseInt(result, 16) / 1e18;
+}
+
+// Get ERC-20 token balance via RPC (balanceOf)
+async function getTokenBalance(tokenContract: string, walletAddress: string, decimals: number): Promise<number> {
+  const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, "0");
+  const data = `0x70a08231${paddedAddress}`;
+  const result = await rpcCall("eth_call", [{ to: tokenContract, data }, "latest"]);
+  if (!result || result === "0x" || result === "0x0") return 0;
+  return parseInt(result, 16) / Math.pow(10, decimals);
+}
+
+// Get ERC-721 NFT balance via RPC (balanceOf — same selector as ERC-20)
+async function getNFTBalance(nftContract: string, walletAddress: string): Promise<number> {
+  const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, "0");
+  const data = `0x70a08231${paddedAddress}`;
+  const result = await rpcCall("eth_call", [{ to: nftContract, data }, "latest"]);
+  if (!result || result === "0x" || result === "0x0") return 0;
+  return parseInt(result, 16);
+}
+
+// ─── BSCScan V2 (Etherscan unified API) — fallback for tx history ──
+async function fetchTxHistory(address: string, action: string): Promise<unknown[]> {
+  // Try Etherscan V2 first (unified API)
+  try {
+    const res = await fetch(
+      `https://api.etherscan.io/v2/api?chainid=56&module=account&action=${action}&address=${address}&page=1&offset=100&sort=desc&apikey=${BSCSCAN_API_KEY}`
+    );
+    const data = await res.json();
+    if (data.status === "1" && Array.isArray(data.result)) return data.result;
+  } catch { /* V2 failed */ }
+
+  // Fallback: try BSCScan V1 (may still work with valid API key)
+  try {
+    const res = await fetch(
+      `https://api.bscscan.com/api?module=account&action=${action}&address=${address}&page=1&offset=100&sort=desc&apikey=${BSCSCAN_API_KEY}`
+    );
+    const data = await res.json();
+    if (data.status === "1" && Array.isArray(data.result)) return data.result;
+  } catch { /* V1 failed */ }
+
+  return [];
+}
+
 interface TokenBalance {
   symbol: string;
   name: string;
@@ -85,133 +167,103 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid address" }, { status: 400 });
     }
 
-    // Fetch live prices in parallel with blockchain data
-    const [prices] = await Promise.all([fetchLivePrices()]);
-
     const tokens: TokenBalance[] = [];
     const detectedProtocols = new Set<string>();
 
-    // 1. Fetch BNB balance via BSCScan
-    try {
-      const balanceRes = await fetch(
-        `https://api.bscscan.com/api?module=account&action=balance&address=${address}&tag=latest&apikey=${BSCSCAN_API_KEY}`
-      );
-      const balanceData = await balanceRes.json();
-      if (balanceData.status === "1" && balanceData.result) {
-        const bnbBalance = parseFloat(balanceData.result) / 1e18;
-        if (bnbBalance > 0.0001) {
-          tokens.push({
-            symbol: "BNB",
-            name: "BNB",
-            balance: bnbBalance,
-            valueUSD: bnbBalance * prices.BNB,
-            contract: "native",
-          });
-        }
-      }
-    } catch {
-      // BNB balance fetch failed
+    // Run all queries in parallel for speed
+    const [prices, bnbBalance, ...tokenBalances] = await Promise.all([
+      fetchLivePrices(),
+      getBNBBalance(address),
+      ...Object.entries(KNOWN_TOKENS).map(([contract, info]) =>
+        getTokenBalance(contract, address, info.decimals).then(balance => ({
+          contract, info, balance,
+        }))
+      ),
+    ]);
+
+    // 1. Add BNB if present
+    if (bnbBalance > 0.0001) {
+      tokens.push({
+        symbol: "BNB",
+        name: "BNB",
+        balance: bnbBalance,
+        valueUSD: bnbBalance * prices.BNB,
+        contract: "native",
+      });
     }
 
-    // 2. Directly check balances for known BEP-20 tokens (accurate)
-    const tokenChecks = Object.entries(KNOWN_TOKENS).map(async ([contract, info]) => {
-      try {
-        const res = await fetch(
-          `https://api.bscscan.com/api?module=account&action=tokenbalance&contractaddress=${contract}&address=${address}&tag=latest&apikey=${BSCSCAN_API_KEY}`
-        );
-        const data = await res.json();
-        if (data.status === "1" && data.result && data.result !== "0") {
-          const balance = parseFloat(data.result) / Math.pow(10, info.decimals);
-          if (balance > 0.0001) {
-            const price = prices[info.symbol] || 0;
-            return {
-              symbol: info.symbol,
-              name: info.name,
-              balance,
-              valueUSD: balance * price,
-              contract,
-            } as TokenBalance;
-          }
-        }
-      } catch {
-        // Individual token check failed
+    // 2. Add known BEP-20 tokens with balance
+    for (const { contract, info, balance } of tokenBalances) {
+      if (balance > 0.0001) {
+        const price = prices[info.symbol] || 0;
+        tokens.push({
+          symbol: info.symbol,
+          name: info.name,
+          balance,
+          valueUSD: balance * price,
+          contract,
+        });
       }
-      return null;
+    }
+
+    // 3. Check NFT balances on protocol contracts (detect V3 LP positions etc.)
+    const nftChecks = Object.entries(PROTOCOL_NFT_CONTRACTS).map(async ([contract, protocol]) => {
+      const balance = await getNFTBalance(contract, address);
+      if (balance > 0) detectedProtocols.add(protocol);
     });
 
-    const tokenResults = await Promise.all(tokenChecks);
-    for (const t of tokenResults) {
-      if (t) tokens.push(t);
-    }
+    // 4. Check Venus vToken balances (holding vTokens = using Venus)
+    const venusChecks = Object.entries(VENUS_VTOKENS).map(async ([contract]) => {
+      const balance = await getTokenBalance(contract, address, 8); // vTokens use 8 decimals
+      if (balance > 0.0001) detectedProtocols.add("venus");
+    });
 
-    // 3. Fetch token transfers to detect protocol interactions
-    try {
-      const txRes = await fetch(
-        `https://api.bscscan.com/api?module=account&action=tokentx&address=${address}&page=1&offset=100&sort=desc&apikey=${BSCSCAN_API_KEY}`
-      );
-      const txData = await txRes.json();
-      if (txData.status === "1" && Array.isArray(txData.result)) {
-        for (const tx of txData.result) {
-          const fromProto = PROTOCOL_CONTRACTS[tx.from?.toLowerCase()];
-          const toProto = PROTOCOL_CONTRACTS[tx.to?.toLowerCase()];
-          if (fromProto) detectedProtocols.add(fromProto);
-          if (toProto) detectedProtocols.add(toProto);
+    await Promise.all([...nftChecks, ...venusChecks]);
 
-          // Also pick up unknown tokens with balance from transfers
-          const contract = tx.contractAddress?.toLowerCase() || "";
-          if (!KNOWN_TOKENS[contract] && !tokens.find(t => t.contract === contract)) {
-            const symbol = tx.tokenSymbol || "UNKNOWN";
-            const name = tx.tokenName || symbol;
-            if (symbol !== "UNKNOWN" && tx.to?.toLowerCase() === address.toLowerCase()) {
-              // Only add if we see incoming transfer — rough indicator of holdings
-              const decimals = parseInt(tx.tokenDecimal) || 18;
-              const value = parseFloat(tx.value || "0") / Math.pow(10, decimals);
-              if (value > 0) {
-                tokens.push({ symbol, name, balance: value, valueUSD: 0, contract });
-              }
-            }
+    // 5. Fetch transaction history for additional protocol detection
+    const [tokenTxs, normalTxs, nftTxs] = await Promise.all([
+      fetchTxHistory(address, "tokentx"),
+      fetchTxHistory(address, "txlist"),
+      fetchTxHistory(address, "tokennfttx"),
+    ]);
+
+    // Detect protocols from token transfers
+    for (const tx of tokenTxs as Array<Record<string, string>>) {
+      const fromProto = PROTOCOL_CONTRACTS[tx.from?.toLowerCase()];
+      const toProto = PROTOCOL_CONTRACTS[tx.to?.toLowerCase()];
+      if (fromProto) detectedProtocols.add(fromProto);
+      if (toProto) detectedProtocols.add(toProto);
+
+      // Pick up unknown tokens from incoming transfers
+      const contract = tx.contractAddress?.toLowerCase() || "";
+      if (!KNOWN_TOKENS[contract] && !tokens.find(t => t.contract === contract)) {
+        const symbol = tx.tokenSymbol || "UNKNOWN";
+        const name = tx.tokenName || symbol;
+        if (symbol !== "UNKNOWN" && tx.to?.toLowerCase() === address.toLowerCase()) {
+          const decimals = parseInt(tx.tokenDecimal) || 18;
+          const value = parseFloat(tx.value || "0") / Math.pow(10, decimals);
+          if (value > 0) {
+            tokens.push({ symbol, name, balance: value, valueUSD: 0, contract });
           }
         }
       }
-    } catch {
-      // Token tx fetch failed
     }
 
-    // 4. Fetch NFT transfers to detect V3 LP positions (ERC-721)
-    try {
-      const nftRes = await fetch(
-        `https://api.bscscan.com/api?module=account&action=tokennfttx&address=${address}&page=1&offset=100&sort=desc&apikey=${BSCSCAN_API_KEY}`
-      );
-      const nftData = await nftRes.json();
-      if (nftData.status === "1" && Array.isArray(nftData.result)) {
-        for (const tx of nftData.result) {
-          const contract = tx.contractAddress?.toLowerCase() || "";
-          const fromProto = PROTOCOL_CONTRACTS[contract];
-          const toProto = PROTOCOL_CONTRACTS[tx.to?.toLowerCase()];
-          const fromAddrProto = PROTOCOL_CONTRACTS[tx.from?.toLowerCase()];
-          if (fromProto) detectedProtocols.add(fromProto);
-          if (toProto) detectedProtocols.add(toProto);
-          if (fromAddrProto) detectedProtocols.add(fromAddrProto);
-        }
-      }
-    } catch {
-      // NFT tx fetch failed
+    // Detect protocols from normal transactions
+    for (const tx of normalTxs as Array<Record<string, string>>) {
+      const toProto = PROTOCOL_CONTRACTS[tx.to?.toLowerCase()];
+      if (toProto) detectedProtocols.add(toProto);
     }
 
-    // 5. Fetch normal txns to detect more protocol interactions
-    try {
-      const normRes = await fetch(
-        `https://api.bscscan.com/api?module=account&action=txlist&address=${address}&page=1&offset=50&sort=desc&apikey=${BSCSCAN_API_KEY}`
-      );
-      const normData = await normRes.json();
-      if (normData.status === "1" && Array.isArray(normData.result)) {
-        for (const tx of normData.result) {
-          const toProto = PROTOCOL_CONTRACTS[tx.to?.toLowerCase()];
-          if (toProto) detectedProtocols.add(toProto);
-        }
-      }
-    } catch {
-      // Normal tx fetch failed
+    // Detect protocols from NFT transfers
+    for (const tx of nftTxs as Array<Record<string, string>>) {
+      const contract = tx.contractAddress?.toLowerCase() || "";
+      const fromProto = PROTOCOL_CONTRACTS[contract];
+      const toProto = PROTOCOL_CONTRACTS[tx.to?.toLowerCase()];
+      const fromAddrProto = PROTOCOL_CONTRACTS[tx.from?.toLowerCase()];
+      if (fromProto) detectedProtocols.add(fromProto);
+      if (toProto) detectedProtocols.add(toProto);
+      if (fromAddrProto) detectedProtocols.add(fromAddrProto);
     }
 
     const totalValueUSD = tokens.reduce((sum, t) => sum + t.valueUSD, 0);
