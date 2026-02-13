@@ -34,10 +34,15 @@ const STABLECOINS = ["USDT", "USDC", "BUSD", "DAI", "TUSD"];
 // ─── Module 1: Portfolio Health Scorer ──────────────────────────────
 function portfolioHealthScorer(tokens: TokenInfo[], protocols: string[]): ModuleResult {
   const findings: string[] = [];
+  const totalValue = tokens.reduce((s, t) => s + t.valueUSD, 0);
+
+  if (totalValue === 0 && tokens.length === 0) {
+    findings.push("No assets detected — wallet is clean");
+    return { name: "Portfolio Health", score: 100, risk: "low", findings };
+  }
+
   let score = 50;
 
-  // Diversification (Herfindahl Index)
-  const totalValue = tokens.reduce((s, t) => s + t.valueUSD, 0);
   if (totalValue > 0) {
     const hhi = tokens.reduce((s, t) => s + Math.pow(t.valueUSD / totalValue, 2), 0);
     if (hhi < 0.25) { score += 20; findings.push("Well-diversified portfolio (HHI: " + hhi.toFixed(3) + ")"); }
@@ -117,6 +122,11 @@ function impermanentLossTracker(tokens: TokenInfo[]): ModuleResult {
   const findings: string[] = [];
   let score = 80;
 
+  if (tokens.length === 0) {
+    findings.push("No assets detected — no IL exposure");
+    return { name: "Impermanent Loss", score: 100, risk: "low", findings };
+  }
+
   // Detect LP-like tokens
   const lpTokens = tokens.filter(t =>
     t.symbol.includes("-") || t.symbol.includes("LP") || t.symbol.includes("Cake-LP")
@@ -124,7 +134,7 @@ function impermanentLossTracker(tokens: TokenInfo[]): ModuleResult {
 
   if (lpTokens.length === 0) {
     findings.push("No liquidity pool positions detected");
-    return { name: "Impermanent Loss", score: 90, risk: "low", findings };
+    return { name: "Impermanent Loss", score: 100, risk: "low", findings };
   }
 
   for (const lp of lpTokens) {
@@ -152,7 +162,7 @@ function liquidationMonitor(tokens: TokenInfo[], protocols: string[]): ModuleRes
 
   if (!hasLending) {
     findings.push("No lending positions detected — no liquidation risk");
-    return { name: "Liquidation Monitor", score: 95, risk: "low", findings };
+    return { name: "Liquidation Monitor", score: 100, risk: "low", findings };
   }
 
   // Estimate health factor based on portfolio composition
@@ -184,8 +194,8 @@ function protocolRiskScorer(protocols: string[]): ModuleResult {
   let totalScore = 0;
 
   if (protocols.length === 0) {
-    findings.push("No DeFi protocols detected in use");
-    return { name: "Protocol Risk", score: 50, risk: "medium", findings };
+    findings.push("No DeFi protocols in use — no protocol risk");
+    return { name: "Protocol Risk", score: 100, risk: "low", findings };
   }
 
   for (const proto of protocols) {
@@ -218,8 +228,11 @@ function concentrationRisk(tokens: TokenInfo[], protocols: string[]): ModuleResu
   let score = 80;
 
   const totalValue = tokens.reduce((s, t) => s + t.valueUSD, 0);
+  if (totalValue === 0 && tokens.length === 0) {
+    return { name: "Concentration Risk", score: 100, risk: "low", findings: ["No assets detected — no concentration risk"] };
+  }
   if (totalValue === 0) {
-    return { name: "Concentration Risk", score: 50, risk: "medium", findings: ["No portfolio value detected"] };
+    return { name: "Concentration Risk", score: 100, risk: "low", findings: ["No valued assets — no concentration risk"] };
   }
 
   // Token concentration
@@ -257,8 +270,13 @@ function concentrationRisk(tokens: TokenInfo[], protocols: string[]): ModuleResu
 // ─── Module 7: Gas Optimizer ────────────────────────────────────────
 function gasOptimizer(tokens: TokenInfo[], protocols: string[]): ModuleResult {
   const findings: string[] = [];
-  let score = 75;
 
+  if (tokens.length === 0 && protocols.length === 0) {
+    findings.push("No assets or protocols — no gas costs");
+    return { name: "Gas Optimizer", score: 100, risk: "low", findings, data: { estimatedGasCost: 0, estimatedTxCount: 0 } };
+  }
+
+  let score = 75;
   const estimatedTxCount = tokens.length + protocols.length * 2;
   const avgGasBSC = 0.001; // ~$0.60 per tx on BSC
   const estimatedGasCost = estimatedTxCount * avgGasBSC * 600;
@@ -300,7 +318,11 @@ async function fetchBNBPrice(): Promise<number> {
   }
 }
 
-async function marketSentiment(): Promise<ModuleResult> {
+async function marketSentiment(hasTokens: boolean = true): Promise<ModuleResult> {
+  if (!hasTokens) {
+    const bnbPrice = await fetchBNBPrice();
+    return { name: "Market Sentiment", score: 100, risk: "low", findings: [`BNB price: $${bnbPrice.toFixed(2)}`, "No positions — no market risk exposure"], data: { sentiment: "neutral", bnbPrice } };
+  }
   const findings: string[] = [];
 
   const bnbPrice = await fetchBNBPrice();
@@ -417,7 +439,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Run all 8 modules (marketSentiment is async — fetches live BNB price)
-    const sentimentResult = await marketSentiment();
+    const hasTokens = (tokens || []).length > 0;
+    const sentimentResult = await marketSentiment(hasTokens);
     const moduleResults: ModuleResult[] = [
       portfolioHealthScorer(tokens || [], protocols || []),
       yieldOptimizer(tokens || [], protocols || []),
