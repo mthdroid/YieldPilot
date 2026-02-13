@@ -286,15 +286,28 @@ function gasOptimizer(tokens: TokenInfo[], protocols: string[]): ModuleResult {
 }
 
 // ─── Module 8: Market Sentiment ─────────────────────────────────────
-function marketSentiment(): ModuleResult {
+async function fetchBNBPrice(): Promise<number> {
+  try {
+    const res = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd",
+      { next: { revalidate: 120 } }
+    );
+    if (!res.ok) return 600;
+    const data = await res.json();
+    return data.binancecoin?.usd || 600;
+  } catch {
+    return 600;
+  }
+}
+
+async function marketSentiment(): Promise<ModuleResult> {
   const findings: string[] = [];
 
-  // Deterministic analysis based on general BSC ecosystem health
-  const bnbPrice = 600;
+  const bnbPrice = await fetchBNBPrice();
   const sentiment = bnbPrice > 500 ? "bullish" : bnbPrice > 300 ? "neutral" : "bearish";
   const score = sentiment === "bullish" ? 75 : sentiment === "neutral" ? 55 : 30;
 
-  findings.push(`BNB price range: ~$${bnbPrice} — ${sentiment} territory`);
+  findings.push(`BNB price: $${bnbPrice.toFixed(2)} — ${sentiment} territory`);
   findings.push("BSC DeFi TVL: Stable with moderate growth trend");
 
   if (sentiment === "bullish") {
@@ -403,7 +416,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Address required" }, { status: 400 });
     }
 
-    // Run all 8 modules
+    // Run all 8 modules (marketSentiment is async — fetches live BNB price)
+    const sentimentResult = await marketSentiment();
     const moduleResults: ModuleResult[] = [
       portfolioHealthScorer(tokens || [], protocols || []),
       yieldOptimizer(tokens || [], protocols || []),
@@ -412,7 +426,7 @@ export async function POST(request: NextRequest) {
       protocolRiskScorer(protocols || []),
       concentrationRisk(tokens || [], protocols || []),
       gasOptimizer(tokens || [], protocols || []),
-      marketSentiment(),
+      sentimentResult,
     ];
 
     // Run Claude AI analysis

@@ -26,11 +26,37 @@ const PROTOCOL_CONTRACTS: Record<string, string> = {
   "0xd4ae6eca985340dd434d38f470accce4dc78d109": "thena",
 };
 
-// Rough USD prices for known tokens (fallback)
-const TOKEN_PRICES: Record<string, number> = {
+// Fallback prices (used only if live fetch fails)
+const FALLBACK_PRICES: Record<string, number> = {
   WBNB: 600, BNB: 600, USDT: 1, USDC: 1, BUSD: 1,
   ETH: 3200, BTCB: 95000, CAKE: 2.5, XVS: 8,
 };
+
+// Fetch live prices from CoinGecko
+async function fetchLivePrices(): Promise<Record<string, number>> {
+  try {
+    const ids = "binancecoin,tether,usd-coin,binance-usd,ethereum,bitcoin,pancakeswap-token,venus";
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
+      { next: { revalidate: 120 } }
+    );
+    if (!res.ok) return FALLBACK_PRICES;
+    const data = await res.json();
+    return {
+      WBNB: data.binancecoin?.usd || FALLBACK_PRICES.WBNB,
+      BNB: data.binancecoin?.usd || FALLBACK_PRICES.BNB,
+      USDT: data.tether?.usd || 1,
+      USDC: data["usd-coin"]?.usd || 1,
+      BUSD: data["binance-usd"]?.usd || 1,
+      ETH: data.ethereum?.usd || FALLBACK_PRICES.ETH,
+      BTCB: data.bitcoin?.usd || FALLBACK_PRICES.BTCB,
+      CAKE: data["pancakeswap-token"]?.usd || FALLBACK_PRICES.CAKE,
+      XVS: data.venus?.usd || FALLBACK_PRICES.XVS,
+    };
+  } catch {
+    return FALLBACK_PRICES;
+  }
+}
 
 interface TokenBalance {
   symbol: string;
@@ -46,6 +72,9 @@ export async function POST(request: NextRequest) {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return NextResponse.json({ error: "Invalid address" }, { status: 400 });
     }
+
+    // Fetch live prices in parallel with blockchain data
+    const [prices] = await Promise.all([fetchLivePrices()]);
 
     const tokens: TokenBalance[] = [];
     const detectedProtocols = new Set<string>();
@@ -63,7 +92,7 @@ export async function POST(request: NextRequest) {
             symbol: "BNB",
             name: "BNB",
             balance: bnbBalance,
-            valueUSD: bnbBalance * TOKEN_PRICES.BNB,
+            valueUSD: bnbBalance * prices.BNB,
             contract: "native",
           });
         }
@@ -72,52 +101,62 @@ export async function POST(request: NextRequest) {
       // BNB balance fetch failed
     }
 
-    // 2. Fetch BEP-20 token transfers to detect holdings
+    // 2. Directly check balances for known BEP-20 tokens (accurate)
+    const tokenChecks = Object.entries(KNOWN_TOKENS).map(async ([contract, info]) => {
+      try {
+        const res = await fetch(
+          `https://api.bscscan.com/api?module=account&action=tokenbalance&contractaddress=${contract}&address=${address}&tag=latest&apikey=${BSCSCAN_API_KEY}`
+        );
+        const data = await res.json();
+        if (data.status === "1" && data.result && data.result !== "0") {
+          const balance = parseFloat(data.result) / Math.pow(10, info.decimals);
+          if (balance > 0.0001) {
+            const price = prices[info.symbol] || 0;
+            return {
+              symbol: info.symbol,
+              name: info.name,
+              balance,
+              valueUSD: balance * price,
+              contract,
+            } as TokenBalance;
+          }
+        }
+      } catch {
+        // Individual token check failed
+      }
+      return null;
+    });
+
+    const tokenResults = await Promise.all(tokenChecks);
+    for (const t of tokenResults) {
+      if (t) tokens.push(t);
+    }
+
+    // 3. Fetch token transfers to detect protocol interactions
     try {
       const txRes = await fetch(
         `https://api.bscscan.com/api?module=account&action=tokentx&address=${address}&page=1&offset=100&sort=desc&apikey=${BSCSCAN_API_KEY}`
       );
       const txData = await txRes.json();
       if (txData.status === "1" && Array.isArray(txData.result)) {
-        const tokenBalances: Record<string, { symbol: string; name: string; decimals: number; contract: string; net: bigint }> = {};
-
         for (const tx of txData.result) {
-          const contract = tx.contractAddress?.toLowerCase() || "";
-          const known = KNOWN_TOKENS[contract];
-          const symbol = known?.symbol || tx.tokenSymbol || "UNKNOWN";
-          const name = known?.name || tx.tokenName || symbol;
-          const decimals = known?.decimals || parseInt(tx.tokenDecimal) || 18;
-
-          if (!tokenBalances[contract]) {
-            tokenBalances[contract] = { symbol, name, decimals, contract, net: BigInt(0) };
-          }
-
-          const value = BigInt(tx.value || "0");
-          if (tx.to?.toLowerCase() === address.toLowerCase()) {
-            tokenBalances[contract].net += value;
-          } else if (tx.from?.toLowerCase() === address.toLowerCase()) {
-            tokenBalances[contract].net -= value;
-          }
-
-          // Detect protocol interactions
           const fromProto = PROTOCOL_CONTRACTS[tx.from?.toLowerCase()];
           const toProto = PROTOCOL_CONTRACTS[tx.to?.toLowerCase()];
           if (fromProto) detectedProtocols.add(fromProto);
           if (toProto) detectedProtocols.add(toProto);
-        }
 
-        for (const [, data] of Object.entries(tokenBalances)) {
-          if (data.net > BigInt(0)) {
-            const balance = parseFloat(data.net.toString()) / Math.pow(10, data.decimals);
-            if (balance > 0.0001) {
-              const price = TOKEN_PRICES[data.symbol] || 0;
-              tokens.push({
-                symbol: data.symbol,
-                name: data.name,
-                balance,
-                valueUSD: balance * price,
-                contract: data.contract,
-              });
+          // Also pick up unknown tokens with balance from transfers
+          const contract = tx.contractAddress?.toLowerCase() || "";
+          if (!KNOWN_TOKENS[contract] && !tokens.find(t => t.contract === contract)) {
+            const symbol = tx.tokenSymbol || "UNKNOWN";
+            const name = tx.tokenName || symbol;
+            if (symbol !== "UNKNOWN" && tx.to?.toLowerCase() === address.toLowerCase()) {
+              // Only add if we see incoming transfer — rough indicator of holdings
+              const decimals = parseInt(tx.tokenDecimal) || 18;
+              const value = parseFloat(tx.value || "0") / Math.pow(10, decimals);
+              if (value > 0) {
+                tokens.push({ symbol, name, balance: value, valueUSD: 0, contract });
+              }
             }
           }
         }
@@ -126,7 +165,7 @@ export async function POST(request: NextRequest) {
       // Token tx fetch failed
     }
 
-    // 3. Fetch normal txns to detect more protocol interactions
+    // 4. Fetch normal txns to detect more protocol interactions
     try {
       const normRes = await fetch(
         `https://api.bscscan.com/api?module=account&action=txlist&address=${address}&page=1&offset=50&sort=desc&apikey=${BSCSCAN_API_KEY}`
@@ -150,6 +189,7 @@ export async function POST(request: NextRequest) {
       totalValueUSD: Math.round(totalValueUSD * 100) / 100,
       protocols: Array.from(detectedProtocols),
       tokenCount: tokens.length,
+      prices: { BNB: prices.BNB, ETH: prices.ETH, BTCB: prices.BTCB },
       timestamp: Date.now(),
     });
   } catch (err: unknown) {

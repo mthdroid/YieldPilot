@@ -164,7 +164,7 @@ function DashboardContent() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      if (data.tokens.length === 0 || isDemo) {
+      if (isDemo) {
         data.tokens = [
           { symbol: "BNB", name: "BNB", balance: 12.5, valueUSD: 7500, contract: "native" },
           { symbol: "USDT", name: "Tether USD", balance: 5000, valueUSD: 5000, contract: "0x55d398326f99059ff775485246999027b3197955" },
