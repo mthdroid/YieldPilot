@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ethers } from "ethers";
 import { connectWallet } from "@/lib/wallet";
 import { REGISTRY_ABI } from "@/lib/contract";
+import { BSC_PROTOCOLS } from "@/lib/protocols";
 
 const PUBLISH_NETWORKS: Record<string, { name: string; chainId: number; registry: string; explorer: string; rpcUrl: string; hexChainId: string }> = {
   bsc: {
@@ -350,6 +351,18 @@ function DashboardContent() {
               <span className="text-[12px] text-[var(--yp-text-secondary)]">{portfolio.tokens.length} tokens</span>
               <span className="text-[12px] text-[var(--yp-text-secondary)]">{portfolio.protocols.length} protocols</span>
             </div>
+            {portfolio.protocols.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {portfolio.protocols.map((p) => {
+                  const proto = BSC_PROTOCOLS[p];
+                  return (
+                    <span key={p} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--yp-accent)]/10 text-[var(--yp-accent)] border border-[var(--yp-accent)]/20">
+                      {proto?.name || p}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Pie Chart */}
@@ -391,6 +404,36 @@ function DashboardContent() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Monitored Protocols */}
+      {portfolio && !loading && (
+        <div className="card p-5 mb-6 animate-slide-up" style={{ animationDelay: "0.05s" }}>
+          <p className="section-label mb-3">Monitored Protocols</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {Object.entries(BSC_PROTOCOLS).map(([key, proto]) => {
+              const detected = portfolio.protocols.includes(key);
+              return (
+                <div
+                  key={key}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-[var(--yp-radius-sm)] border transition-all ${
+                    detected
+                      ? "border-[var(--yp-accent)]/40 bg-[var(--yp-accent)]/5"
+                      : "border-[var(--yp-border)] bg-[var(--yp-surface)] opacity-50"
+                  }`}
+                >
+                  <span className={`text-[12px] font-semibold ${detected ? "text-[var(--yp-accent)]" : "text-[var(--yp-text-secondary)]"}`}>
+                    {proto.name}
+                  </span>
+                  <span className="text-[10px] text-[var(--yp-muted)] capitalize">{proto.type}</span>
+                  {detected && (
+                    <span className="text-[9px] font-medium text-[var(--yp-success)] mt-0.5">Detected</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
