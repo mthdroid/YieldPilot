@@ -17,6 +17,7 @@ export const BSC_PROTOCOLS: Record<string, ProtocolConfig> = {
       "0xA07c5b74C9B40447a954e1466938b865b6BBea36",
       "0xecA88125a5ADbe82614ffC12D0DB554E2e2867C8",
       "0xfD5840Cd36d94D7229439859C0112a4185BC0255",
+      "0xfD36E2c2a6789Db23113685031d7F16329158384", // Comptroller
     ],
     riskLevel: "low",
     tvlBillions: 1.5,
@@ -27,9 +28,12 @@ export const BSC_PROTOCOLS: Record<string, ProtocolConfig> = {
     name: "PancakeSwap",
     type: "dex",
     contracts: [
-      "0x10ED43C718714eb63d5aA57B78B54704E256024E",
-      "0x13f4EA83D0bd40E75C8222255bc855a974568Dd4",
-      "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865",
+      "0x10ED43C718714eb63d5aA57B78B54704E256024E", // V2 Router
+      "0x73feaa1eE314F8c655E354234017bE2193C9e24E", // MasterChef V2
+      "0x13f4EA83D0bd40E75C8222255bc855a974568Dd4", // V3 SmartRouter
+      "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865", // V3 Factory
+      "0x46A15B0b27311cedF172AB29E4f4766fbE7F4364", // V3 NonfungiblePositionManager
+      "0x556B9306565093C855AEA9AE92A594704c2Cd59e", // MasterChef V3
     ],
     riskLevel: "low",
     tvlBillions: 2.0,
@@ -61,6 +65,7 @@ export const BSC_PROTOCOLS: Record<string, ProtocolConfig> = {
     type: "bridge",
     contracts: [
       "0x4a364f8c717cAAD9A442737Eb7b8A55cc6cf18D8",
+      "0x3052A0F6ab15b4AE1df39962d5DDefacA86DaB47", // Router
     ],
     riskLevel: "medium",
     tvlBillions: 0.5,
@@ -72,6 +77,7 @@ export const BSC_PROTOCOLS: Record<string, ProtocolConfig> = {
     type: "dex",
     contracts: [
       "0xd4ae6eCA985340Dd434D38F470aCCce4DC78D109",
+      "0x20a304a7d126758dfe6b243d0c075e5a31eb2e52", // Router
     ],
     riskLevel: "medium",
     tvlBillions: 0.1,

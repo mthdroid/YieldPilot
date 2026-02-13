@@ -14,16 +14,28 @@ const KNOWN_TOKENS: Record<string, { symbol: string; decimals: number; name: str
 };
 
 const PROTOCOL_CONTRACTS: Record<string, string> = {
+  // Venus
   "0xcf6bb5389c92bdda8a3747ddb454cb7a64626c63": "venus",
   "0xa07c5b74c9b40447a954e1466938b865b6bbea36": "venus",
   "0xeca88125a5adbe82614ffc12d0db554e2e2867c8": "venus",
   "0xfd5840cd36d94d7229439859c0112a4185bc0255": "venus",
-  "0x10ed43c718714eb63d5aa57b78b54704e256024e": "pancakeswap",
-  "0x13f4ea83d0bd40e75c8222255bc855a974568dd4": "pancakeswap",
-  "0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865": "pancakeswap",
+  "0xfd36e2c2a6789db23113685031d7f16329158384": "venus", // Comptroller
+  // PancakeSwap V2
+  "0x10ed43c718714eb63d5aa57b78b54704e256024e": "pancakeswap", // V2 Router
+  "0x73feaa1ee314f8c655e354234017be2193c9e24e": "pancakeswap", // MasterChef V2
+  // PancakeSwap V3
+  "0x13f4ea83d0bd40e75c8222255bc855a974568dd4": "pancakeswap", // V3 SmartRouter
+  "0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865": "pancakeswap", // V3 Factory
+  "0x46a15b0b27311cedf172ab29e4f4766fbe7f4364": "pancakeswap", // V3 NonfungiblePositionManager
+  "0x556b9306565093c855aea9ae92a594704c2cd59e": "pancakeswap", // MasterChef V3
+  // Alpaca
   "0xa625ab01b08ce023b2a342dbb12a16f2c8489a8f": "alpaca",
+  // Stargate
   "0x4a364f8c717caad9a442737eb7b8a55cc6cf18d8": "stargate",
+  "0x3052a0f6ab15b4ae1df39962d5ddefaca86dab47": "stargate", // Router
+  // Thena
   "0xd4ae6eca985340dd434d38f470accce4dc78d109": "thena",
+  "0x20a304a7d126758dfe6b243d0c075e5a31eb2e52": "thena", // Router
 };
 
 // Fallback prices (used only if live fetch fails)
@@ -165,7 +177,28 @@ export async function POST(request: NextRequest) {
       // Token tx fetch failed
     }
 
-    // 4. Fetch normal txns to detect more protocol interactions
+    // 4. Fetch NFT transfers to detect V3 LP positions (ERC-721)
+    try {
+      const nftRes = await fetch(
+        `https://api.bscscan.com/api?module=account&action=tokennfttx&address=${address}&page=1&offset=100&sort=desc&apikey=${BSCSCAN_API_KEY}`
+      );
+      const nftData = await nftRes.json();
+      if (nftData.status === "1" && Array.isArray(nftData.result)) {
+        for (const tx of nftData.result) {
+          const contract = tx.contractAddress?.toLowerCase() || "";
+          const fromProto = PROTOCOL_CONTRACTS[contract];
+          const toProto = PROTOCOL_CONTRACTS[tx.to?.toLowerCase()];
+          const fromAddrProto = PROTOCOL_CONTRACTS[tx.from?.toLowerCase()];
+          if (fromProto) detectedProtocols.add(fromProto);
+          if (toProto) detectedProtocols.add(toProto);
+          if (fromAddrProto) detectedProtocols.add(fromAddrProto);
+        }
+      }
+    } catch {
+      // NFT tx fetch failed
+    }
+
+    // 5. Fetch normal txns to detect more protocol interactions
     try {
       const normRes = await fetch(
         `https://api.bscscan.com/api?module=account&action=txlist&address=${address}&page=1&offset=50&sort=desc&apikey=${BSCSCAN_API_KEY}`
