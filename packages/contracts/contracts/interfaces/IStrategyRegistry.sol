@@ -1,7 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/// @title IStrategyRegistry — AI DeFi Agent Registry Interface
+/// @notice Defines the interface for YieldPilot's on-chain AI agent identity and strategy system
+/// @dev Inspired by BNB Chain NFA (Non-Fungible Agent) standards for AI agent on-chain identity
 interface IStrategyRegistry {
+    /// @notice On-chain identity for an AI DeFi strategy agent
+    struct AgentProfile {
+        string name;
+        string version;
+        string modules;         // JSON-encoded list of analysis modules
+        uint256 totalStrategies;
+        uint256 avgRiskScore;   // weighted average risk score across strategies
+        uint256 registeredAt;
+        bool active;
+    }
+
     struct Strategy {
         address creator;
         address walletAnalyzed;
@@ -14,6 +28,9 @@ interface IStrategyRegistry {
         uint256 chainId;
     }
 
+    event AgentRegistered(address indexed agent, string name, string version);
+    event AgentProfileUpdated(address indexed agent, string name, string version);
+
     event StrategyPublished(
         uint256 indexed tokenId,
         address indexed creator,
@@ -23,6 +40,14 @@ interface IStrategyRegistry {
     );
 
     event StrategyURIUpdated(uint256 indexed tokenId, string newURI);
+
+    function registerAgent(
+        string calldata name,
+        string calldata version,
+        string calldata modules
+    ) external;
+
+    function getAgentProfile(address agent) external view returns (AgentProfile memory);
 
     function publishStrategy(
         address walletAnalyzed,

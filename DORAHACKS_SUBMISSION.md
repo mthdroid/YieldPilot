@@ -18,8 +18,8 @@ DeFi
 
 ## Is this BUIDL an AI Agent?
 
-No
-(It uses AI for analysis synthesis, but it is a DeFi tool, not an autonomous agent.)
+Yes
+YieldPilot is an autonomous AI DeFi agent that registers its on-chain identity, scans wallets, analyzes portfolios through 8 specialized modules, synthesizes recommendations via Claude AI, and publishes verifiable strategy NFTs — building on-chain reputation with every interaction.
 
 ---
 
@@ -38,7 +38,7 @@ DeFi users on BNB Chain face a fragmented portfolio management experience. They 
 
 ### Solution
 
-YieldPilot is an **AI-powered DeFi portfolio intelligence platform** that:
+YieldPilot is an **autonomous AI DeFi agent** that:
 
 1. **Connects** to any BSC wallet via MetaMask
 2. **Scans** all tokens, DeFi positions, and protocol interactions via BSCScan API
@@ -47,7 +47,7 @@ YieldPilot is an **AI-powered DeFi portfolio intelligence platform** that:
 5. **Publishes** the optimized strategy **on-chain as an ERC-721 NFT** on BSC and opBNB, with a verifiable strategy hash
 6. **Exports** a complete PDF report for offline reference
 
-YieldPilot works **without an AI key** — all 8 analysis modules run independently. Claude AI is an optional enhancement layer that transforms raw data into natural-language strategy advice.
+The agent registers its on-chain identity (inspired by BNB Chain NFA standards) with its 8 analysis modules, builds verifiable reputation through published strategies, and operates autonomously — all analysis modules work independently, with Claude AI as the synthesis layer.
 
 ---
 
@@ -125,11 +125,23 @@ See `architecture-diagram.svg` in the project root — upload this image to the 
 | BSC | `0x6b8e8f703cf8d975d7891f7cbee58a67cb3d4801e37fcfb4c013673e3410d91d` |
 | opBNB | `0x85001d9e508cc72e278876cbb7df3cb58563bb9488ef75dc503867d9889316c5` |
 
+### AI Agent On-Chain Identity (NFA-Inspired)
+
+YieldPilot implements an AI agent identity system inspired by BNB Chain NFA (Non-Fungible Agent) standards:
+
+- **`registerAgent(name, version, modules)`** — Register the AI agent on-chain with its 8 analysis modules
+- **`getAgentProfile(address)`** — Query agent name, version, module list, total strategies, avg risk score
+- **`isRegisteredAgent(address)`** — Verify an address is a registered AI agent
+- **Agent Reputation** — Automatically tracks total strategies published and weighted average risk score
+- The agent builds verifiable, on-chain reputation with every strategy it publishes
+
 ### Key Differentiators
 
+- **AI Agent with On-Chain Identity** — The agent registers and builds reputation on-chain (NFA-inspired)
 - **8 independent modules** — not a single score, but a complete risk/opportunity breakdown
-- **AI is optional** — every module works standalone without an API key
+- **Autonomous analysis** — every module works standalone, Claude AI synthesizes results
 - **On-chain verifiable** — strategy hash ensures integrity, stored as ERC-721 NFT
+- **Agent Reputation System** — avg risk score, total strategies tracked on-chain per agent
 - **Multi-chain** — BSC Mainnet + opBNB, with network switching in the UI
 - **Demo mode** — try the full analysis flow without connecting a wallet
 - **BSC-native** — protocols specifically mapped to the BNB Chain ecosystem
@@ -170,9 +182,9 @@ Use at least one:
 
 ---
 
-# YieldPilot — AI-Powered DeFi Portfolio Intelligence
+# YieldPilot — Autonomous AI DeFi Agent for BNB Chain
 
-> Connect your BSC wallet. Get personalized yield strategies and risk analysis powered by 8 specialized modules + Claude AI. Publish your optimized strategy on-chain as a verifiable ERC-721 NFT on BSC Mainnet and opBNB.
+> An AI agent that registers its on-chain identity, scans your BSC wallet, analyzes your portfolio through 8 specialized modules, synthesizes recommendations via Claude AI, and publishes verifiable strategy NFTs — building on-chain reputation with every interaction. Inspired by BNB Chain NFA standards.
 
 ---
 
@@ -191,7 +203,7 @@ DeFi users on BNB Chain interact with 5–10 protocols (Venus, PancakeSwap, Alpa
 
 ## The Solution
 
-YieldPilot scans your full DeFi portfolio, runs **8 independent analysis modules** (each producing its own risk/opportunity score), synthesizes results with **Claude AI** into personalized recommendations, and lets you **publish your optimized strategy on-chain as an ERC-721 NFT** — with a verifiable keccak256 hash.
+YieldPilot is an **autonomous AI DeFi agent** with on-chain identity (inspired by BNB Chain NFA standards). The agent registers itself on-chain, scans your full DeFi portfolio, runs **8 independent analysis modules** (each producing its own risk/opportunity score), synthesizes results with **Claude AI** into personalized recommendations, publishes your **optimized strategy on-chain as an ERC-721 NFT** — and automatically builds verifiable reputation with every strategy published.
 
 ---
 
@@ -228,9 +240,11 @@ Wallet → BSCScan Scan → 8 Analysis Modules → Claude AI Synthesis → On-Ch
 
 ## Key Differentiators
 
+- **AI Agent with On-Chain Identity** — Registers on-chain, builds verifiable reputation (NFA-inspired)
 - **8 independent modules** — not a single score, but a complete risk/opportunity breakdown
-- **AI is optional** — every module works standalone without an API key
+- **Autonomous operation** — every module works standalone, Claude AI synthesizes results
 - **On-chain verifiable** — keccak256 strategy hash stored as ERC-721 NFT
+- **Agent Reputation** — avg risk score, total strategies tracked on-chain per agent
 - **Multi-chain** — BSC Mainnet + opBNB, with in-app network switching
 - **Strategy Explorer** — browse and search community-published strategies with hash verification
 - **Demo mode** — full analysis flow without connecting a wallet
@@ -300,8 +314,8 @@ Strategy hash published as NFT — anyone can verify the analysis integrity on-c
 
 ## Tracks
 
-- **DeFi** — Portfolio intelligence, yield optimization, and risk analysis
-- **AI** — Claude-powered strategy synthesis from 8 module outputs
+- **DeFi** — Autonomous AI agent for portfolio intelligence, yield optimization, and risk analysis
+- **AI** — On-chain AI agent identity + Claude-powered strategy synthesis from 8 module outputs
 - **opBNB** — Multi-chain deployment (BSC Mainnet + opBNB)
 
 ## AI Build Log

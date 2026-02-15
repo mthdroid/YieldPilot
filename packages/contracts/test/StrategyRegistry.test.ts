@@ -33,6 +33,10 @@ describe("StrategyRegistry", () => {
     it("should support ERC-721 interface", async () => {
       expect(await registry.supportsInterface("0x80ac58cd")).to.be.true;
     });
+
+    it("should start with zero agents", async () => {
+      expect(await registry.totalAgents()).to.equal(0);
+    });
   });
 
   describe("publishStrategy", () => {
@@ -182,6 +186,114 @@ describe("StrategyRegistry", () => {
 
       await registry.connect(user1).transferFrom(user1.address, user2.address, 1);
       expect(await registry.ownerOf(1)).to.equal(user2.address);
+    });
+  });
+
+  describe("AI Agent Identity", () => {
+    const AGENT_NAME = "YieldPilot DeFi Agent";
+    const AGENT_VERSION = "1.0.0";
+    const AGENT_MODULES = '["health","yield-optimizer","il-tracker","liquidation-guard","protocol-risk","concentration","gas-optimizer","sentiment"]';
+
+    it("should register a new AI agent", async () => {
+      await expect(
+        registry.connect(user1).registerAgent(AGENT_NAME, AGENT_VERSION, AGENT_MODULES)
+      ).to.emit(registry, "AgentRegistered")
+        .withArgs(user1.address, AGENT_NAME, AGENT_VERSION);
+
+      const profile = await registry.getAgentProfile(user1.address);
+      expect(profile.name).to.equal(AGENT_NAME);
+      expect(profile.version).to.equal(AGENT_VERSION);
+      expect(profile.modules).to.equal(AGENT_MODULES);
+      expect(profile.totalStrategies).to.equal(0);
+      expect(profile.active).to.be.true;
+    });
+
+    it("should increment totalAgents on registration", async () => {
+      expect(await registry.totalAgents()).to.equal(0);
+      await registry.connect(user1).registerAgent(AGENT_NAME, AGENT_VERSION, AGENT_MODULES);
+      expect(await registry.totalAgents()).to.equal(1);
+      await registry.connect(user2).registerAgent("Agent 2", "0.1.0", "[]");
+      expect(await registry.totalAgents()).to.equal(2);
+    });
+
+    it("should update agent profile without incrementing totalAgents", async () => {
+      await registry.connect(user1).registerAgent(AGENT_NAME, AGENT_VERSION, AGENT_MODULES);
+      expect(await registry.totalAgents()).to.equal(1);
+
+      await expect(
+        registry.connect(user1).registerAgent(AGENT_NAME, "2.0.0", AGENT_MODULES)
+      ).to.emit(registry, "AgentProfileUpdated");
+
+      expect(await registry.totalAgents()).to.equal(1);
+      const profile = await registry.getAgentProfile(user1.address);
+      expect(profile.version).to.equal("2.0.0");
+    });
+
+    it("should revert if agent name is empty", async () => {
+      await expect(
+        registry.connect(user1).registerAgent("", AGENT_VERSION, AGENT_MODULES)
+      ).to.be.revertedWith("Agent name required");
+    });
+
+    it("should revert if agent version is empty", async () => {
+      await expect(
+        registry.connect(user1).registerAgent(AGENT_NAME, "", AGENT_MODULES)
+      ).to.be.revertedWith("Agent version required");
+    });
+
+    it("should return isRegisteredAgent correctly", async () => {
+      expect(await registry.isRegisteredAgent(user1.address)).to.be.false;
+      await registry.connect(user1).registerAgent(AGENT_NAME, AGENT_VERSION, AGENT_MODULES);
+      expect(await registry.isRegisteredAgent(user1.address)).to.be.true;
+      expect(await registry.isRegisteredAgent(user2.address)).to.be.false;
+    });
+
+    it("should return all registered agents", async () => {
+      await registry.connect(user1).registerAgent(AGENT_NAME, AGENT_VERSION, AGENT_MODULES);
+      await registry.connect(user2).registerAgent("Agent B", "1.0.0", "[]");
+
+      const agents = await registry.getRegisteredAgents();
+      expect(agents.length).to.equal(2);
+      expect(agents[0]).to.equal(user1.address);
+      expect(agents[1]).to.equal(user2.address);
+    });
+
+    it("should revert getAgentProfile for unregistered agent", async () => {
+      await expect(
+        registry.getAgentProfile(user1.address)
+      ).to.be.revertedWith("Agent not registered");
+    });
+
+    it("should auto-update agent reputation after strategy", async () => {
+      await registry.connect(user1).registerAgent(AGENT_NAME, AGENT_VERSION, AGENT_MODULES);
+
+      // First strategy: risk 40
+      await registry.connect(user1).publishStrategy(
+        WALLET, 40, 1200, 3, STRATEGY_HASH, "", 56
+      );
+
+      let profile = await registry.getAgentProfile(user1.address);
+      expect(profile.totalStrategies).to.equal(1);
+      expect(profile.avgRiskScore).to.equal(40);
+
+      // Second strategy: risk 60 -> avg = (40+60)/2 = 50
+      const hash2 = ethers.keccak256(ethers.toUtf8Bytes("strategy2"));
+      await registry.connect(user1).publishStrategy(
+        WALLET, 60, 800, 2, hash2, "", 56
+      );
+
+      profile = await registry.getAgentProfile(user1.address);
+      expect(profile.totalStrategies).to.equal(2);
+      expect(profile.avgRiskScore).to.equal(50);
+    });
+
+    it("should not update reputation for non-agent creator", async () => {
+      // user2 is NOT registered as agent
+      await registry.connect(user2).publishStrategy(
+        WALLET, 50, 1000, 2, STRATEGY_HASH, "", 56
+      );
+
+      expect(await registry.isRegisteredAgent(user2.address)).to.be.false;
     });
   });
 });
