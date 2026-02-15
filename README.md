@@ -1,10 +1,10 @@
-# YieldPilot — AI-Powered DeFi Portfolio Intelligence
+# YieldPilot — Autonomous AI DeFi Agent for BNB Chain
 
 [![CI](https://github.com/mthdroid/YieldPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/mthdroid/YieldPilot/actions/workflows/ci.yml)
 
 > **BNB Chain Hackathon — Good Vibes Only: OpenClaw Edition**
 
-YieldPilot connects your wallet, scans your DeFi positions across BSC protocols, runs **8 specialized analysis modules**, synthesizes results with **Claude AI**, and lets you publish your optimized strategy on-chain as a **verifiable ERC-721 NFT**.
+YieldPilot is an autonomous AI DeFi agent that registers its on-chain identity, scans your BSC wallet, analyzes your portfolio through **8 specialized modules**, synthesizes recommendations via **Claude AI**, and publishes verifiable strategy NFTs (ERC-721) on BNB Chain — building on-chain reputation with every interaction. Inspired by BNB Chain NFA (Non-Fungible Agent) standards.
 
 ---
 
@@ -29,15 +29,17 @@ Both contracts are **verified** with full source code on their respective explor
 ## How It Works
 
 ```
-Wallet → BSCScan Scan → 8 Analysis Modules → AI Synthesis → On-Chain NFT + PDF
+Register Agent → Wallet → BSCScan Scan → 8 Analysis Modules → AI Synthesis → On-Chain NFT + PDF
 ```
 
-1. **Connect** — User connects their BSC wallet via MetaMask
-2. **Scan** — BSCScan API fetches all BNB, BEP-20 tokens, DeFi positions, and protocol interactions
-3. **Analyze** — 8 independent modules score the portfolio across risk, yield, and health dimensions
-4. **Synthesize** — Claude AI transforms all module outputs into personalized strategy advice
-5. **Publish** — Strategy minted as an ERC-721 NFT on BSC or opBNB with keccak256 hash verification
-6. **Export** — Full analysis downloadable as PDF report
+1. **Register Agent** — The AI agent registers on-chain with its name, version, and 8 analysis modules (NFA-inspired identity)
+2. **Connect** — User connects their BSC wallet via MetaMask
+3. **Scan** — BSCScan API fetches all BNB, BEP-20 tokens, DeFi positions, and protocol interactions
+4. **Analyze** — 8 independent modules score the portfolio across risk, yield, and health dimensions
+5. **Synthesize** — Claude AI transforms all module outputs into personalized strategy advice
+6. **Publish** — Strategy minted as an ERC-721 NFT on BSC or opBNB with keccak256 hash verification
+7. **Reputation** — Agent's on-chain profile is automatically updated (total strategies, weighted average risk score)
+8. **Export** — Full analysis downloadable as PDF report
 
 ---
 
@@ -134,7 +136,7 @@ The strategy is then hashed (keccak256) and published as an ERC-721 NFT, ensurin
 
 ## Smart Contract Tests
 
-17 unit tests covering deployment, strategy publishing, access control, and ERC-721 compliance:
+28 unit tests covering deployment, strategy publishing, access control, AI agent identity, and ERC-721 compliance:
 
 ```
   StrategyRegistry
@@ -142,6 +144,7 @@ The strategy is then hashed (keccak256) and published as an ERC-721 NFT, ensurin
       ✔ should set correct name and symbol
       ✔ should start with zero strategies
       ✔ should support ERC-721 interface
+      ✔ should start with zero agents
     publishStrategy
       ✔ should mint NFT and store strategy data
       ✔ should emit StrategyPublished event
@@ -161,8 +164,19 @@ The strategy is then hashed (keccak256) and published as an ERC-721 NFT, ensurin
       ✔ should revert if caller is not token owner
     ERC-721 transfers
       ✔ should allow transfer of strategy NFTs
+    AI Agent Identity
+      ✔ should register a new AI agent
+      ✔ should increment totalAgents on registration
+      ✔ should update agent profile without incrementing totalAgents
+      ✔ should revert if agent name is empty
+      ✔ should revert if agent version is empty
+      ✔ should return isRegisteredAgent correctly
+      ✔ should return all registered agents
+      ✔ should revert getAgentProfile for unregistered agent
+      ✔ should auto-update agent reputation after strategy
+      ✔ should not update reputation for non-agent creator
 
-  17 passing (2s)
+  28 passing (2s)
 ```
 
 ---
@@ -177,7 +191,7 @@ YieldPilot/
 │   │   ├── contracts/
 │   │   │   └── StrategyRegistry.sol    # Main contract (OZ v5 ERC-721)
 │   │   ├── test/
-│   │   │   └── StrategyRegistry.test.ts  # 17 unit tests
+│   │   │   └── StrategyRegistry.test.ts  # 28 unit tests
 │   │   ├── scripts/
 │   │   │   ├── deploy.ts               # Deploy script
 │   │   │   └── publish-test.ts         # On-chain test publisher
@@ -209,7 +223,7 @@ YieldPilot/
 | On-Chain | ERC-721 NFT minting, BSC Mainnet + opBNB |
 | PDF Export | jsPDF + html2canvas |
 | CI/CD | GitHub Actions (build + test) |
-| Testing | Hardhat + Chai (17 unit tests) |
+| Testing | Hardhat + Chai (28 unit tests) |
 
 ---
 
@@ -252,7 +266,7 @@ Fill in your keys:
 ### Development
 
 ```bash
-# Run smart contract tests (17 tests)
+# Run smart contract tests (28 tests)
 npm test
 
 # Start the Next.js dev server
@@ -279,21 +293,37 @@ npx hardhat verify --network opbnb <address>
 
 ---
 
+## AI Agent On-Chain Identity (NFA-Inspired)
+
+YieldPilot implements an AI agent identity system inspired by BNB Chain NFA (Non-Fungible Agent) standards:
+
+- **`registerAgent(name, version, modules)`** — Register the AI agent on-chain with its 8 analysis modules
+- **`getAgentProfile(address)`** — Query agent name, version, module list, total strategies, avg risk score
+- **`isRegisteredAgent(address)`** — Verify an address is a registered AI agent
+- **`getRegisteredAgents()`** — List all registered agents
+- **Agent Reputation** — Automatically tracks total strategies published and weighted average risk score
+
+The agent builds **verifiable, on-chain reputation** with every strategy it publishes.
+
+---
+
 ## Key Features
 
+- **AI Agent with On-Chain Identity** — Registers on-chain, builds verifiable reputation (NFA-inspired)
 - **Connect & Scan** — MetaMask wallet connection, automatic portfolio detection via BSCScan API
 - **8-Module Analysis** — Each module produces independent risk/opportunity scores
 - **AI Synthesis** — Claude AI combines all module outputs into actionable strategy
 - **On-Chain Publishing** — Mint your strategy as an ERC-721 NFT with keccak256 hash verification
+- **Agent Reputation System** — Avg risk score, total strategies tracked on-chain per agent
 - **Multi-Chain** — BSC Mainnet + opBNB with in-app network switching
 - **PDF Export** — Download full analysis report as PDF
 - **Demo Mode** — Try the full analysis flow without connecting a wallet
 
 ## Hackathon Tracks
 
-- **DeFi** — Portfolio intelligence and yield optimization
-- **AI** — Claude-powered strategy synthesis
-- **opBNB** — Multi-chain deployment (BSC + opBNB)
+- **DeFi** — Autonomous AI agent for portfolio intelligence, yield optimization, and risk analysis
+- **AI** — On-chain AI agent identity + Claude-powered strategy synthesis from 8 module outputs
+- **opBNB** — Multi-chain deployment (BSC Mainnet + opBNB)
 
 ## AI Build Log
 
